@@ -18,12 +18,12 @@ import androidx.navigation.fragment.NavHostFragment;
 
 public class SecondFragment extends Fragment {
 
-    private Physicaloid mPhysicaloid;
     int connexion = 0;
     int marche=0, arrete=1;
     private int position = 0;
     private String dataStock="";
     private TextView textCounter;
+    boolean waiting = false ;
     private CountDownTimer timer;
     private byte[] buf ;
     private static final String[] positions = new String[]{
@@ -48,12 +48,12 @@ public class SecondFragment extends Fragment {
 //                        }
                         final Activity activity = this.getActivity();
 
-                        mPhysicaloid.addReadListener(new ReadLisener() {
+                        MainActivity.mPhysicaloid.addReadListener(new ReadLisener() {
                             @Override
                             public void onRead(int size) {
 
                                 buf = new byte[size];
-                                mPhysicaloid.read(buf, size);
+                                MainActivity.mPhysicaloid.read(buf, size);
                                 for(int i=0;i<size;i++)
                                 {
                                     char a=(char)buf[i];
@@ -61,6 +61,7 @@ public class SecondFragment extends Fragment {
                                     if(a=='F' )
                                     {
                                         final String data[] = dataStock.split(";");
+                                        Toast.makeText(activity, dataStock, Toast.LENGTH_SHORT).show();
                                         if(data[0].indexOf("S")>1){
                                             marche = Integer.parseInt(data[1]);
                                             arrete = Integer.parseInt(data[2]);
@@ -82,7 +83,8 @@ public class SecondFragment extends Fragment {
 
 
     public void startJob(){
-                if (marche==1 && arrete==0) {
+                if (marche==1 && arrete==0 && waiting==false) {
+                    waiting = true;
                     textCounter.setVisibility(View.VISIBLE);
                     runTimer();
                 }
@@ -91,8 +93,11 @@ public class SecondFragment extends Fragment {
     private void runTimer() {
         Toast.makeText(this.getContext(), positions[position], Toast.LENGTH_LONG).show();
         if (position<positions.length)
+        {
             timer.start();
             position++;
+        } else waiting = false;
+
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
@@ -119,8 +124,8 @@ public class SecondFragment extends Fragment {
         view.findViewById(R.id.button_second).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mPhysicaloid.close();
-                mPhysicaloid.clearReadListener();
+                MainActivity.mPhysicaloid.close();
+                MainActivity.mPhysicaloid.clearReadListener();
                 NavHostFragment.findNavController(SecondFragment.this)
                         .navigate(R.id.action_SecondFragment_to_FirstFragment);
             }
