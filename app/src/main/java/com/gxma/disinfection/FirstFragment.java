@@ -109,7 +109,8 @@ public class FirstFragment extends Fragment {
                             public void run() {
                                 if (!mPhysicaloid.isOpened() && mPhysicaloid.open()) {
                                     mPhysicaloid.open();
-                                    startJob();}
+                                    startSerialReading();
+                                }
                                 else if (!mPhysicaloid.isOpened()) {
                                     Toast.makeText(context, "Probleme de connexion", Toast.LENGTH_SHORT).show();
                                 }
@@ -124,6 +125,8 @@ public class FirstFragment extends Fragment {
                 }
             }
             new SerialTask().execute();
+//            marche=1; arrete=0;
+//            startJob();
         }
 
         return super.onOptionsItemSelected(item);
@@ -181,7 +184,8 @@ public class FirstFragment extends Fragment {
                                 dataStock="";
                             }
                         }
-                    }});}
+                    }});
+            }
         });
     }
 
