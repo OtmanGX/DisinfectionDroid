@@ -31,7 +31,7 @@ import androidx.fragment.app.Fragment;
 public class FirstFragment extends Fragment {
     private Physicaloid mPhysicaloid;
 
-    int marche=, arrete=1;
+    int marche=0, arrete=1;
     private int position = 0;
     private String dataStock="";
     boolean waiting = false ;
