@@ -124,9 +124,9 @@ public class FirstFragment extends Fragment {
                     }
                 }
             }
-            new SerialTask().execute();
-//            marche=1; arrete=0;
-//            startJob();
+//            new SerialTask().execute();
+            marche=1; arrete=0;
+            startJob();
         }
 
         return super.onOptionsItemSelected(item);
