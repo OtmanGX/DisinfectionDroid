@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -22,7 +23,7 @@ import android.widget.Toast;
 
 import com.physicaloid.lib.Physicaloid;
 import com.physicaloid.lib.usb.driver.uart.ReadLisener;
-import java.util.concurrent.Executor;
+
 import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
@@ -57,10 +58,11 @@ public class FirstFragment extends Fragment {
     };
     Context context ;
 
-    ImageView imageView;
+    ImageView imageView, imageView2, imageView3;
     private TextView textCounter, progressText;
     Animation fadeIn = new AlphaAnimation(1, 0);
     Animation fadeOut = new AlphaAnimation(1, 0);
+    Animation rotation;
 
     MediaPlayer mediaPlayer, mediaPlayer2, mediaPlayer3;
     ProgressBar progressBar;
@@ -70,6 +72,14 @@ public class FirstFragment extends Fragment {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         context = this.getContext();
+    }
+
+    @Override
+    public void onStop() {
+        mPhysicaloid.clearReadListener();
+        mPhysicaloid.close();
+        mPhysicaloid=null;
+        super.onStop();
     }
 
     @Override
@@ -102,7 +112,7 @@ public class FirstFragment extends Fragment {
             class SerialTask extends AsyncTask<Void, Void, Void> {
                 @Override
                 protected Void doInBackground(Void... voids) {
-                    while (true) {
+                    while (mPhysicaloid!=null) {
                         Log.w("Thread", "enter the loop");
                         activity.runOnUiThread(new Runnable() {
                             @Override
@@ -122,11 +132,12 @@ public class FirstFragment extends Fragment {
                             e.printStackTrace();
                         }
                     }
+                    return null;
                 }
             }
-//            new SerialTask().execute();
-            marche=1; arrete=0;
-            startJob();
+            new SerialTask().execute();
+//            marche=1; arrete=0;
+//            startJob();
         }
 
         return super.onOptionsItemSelected(item);
@@ -137,10 +148,15 @@ public class FirstFragment extends Fragment {
         textCounter = view.findViewById(R.id.textView);
         progressText = view.findViewById(R.id.textView2);
         imageView = view.findViewById(R.id.imageView);
+        imageView2 = view.findViewById(R.id.vent);
+        imageView3 = view.findViewById(R.id.vent2);
+        rotation = AnimationUtils.loadAnimation(context, R.anim.rotate);
+        rotation.setFillAfter(true);
         progressBar = view.findViewById(R.id.progressBar);
         mediaPlayer = MediaPlayer.create(context, R.raw.tick);
         mediaPlayer2 = MediaPlayer.create(context, R.raw.stop1);
         mediaPlayer3 = MediaPlayer.create(context, R.raw.stop2);
+
         timer = new CountDownTimer(15000, 1000) {
             @Override
             public void onTick(long l) {
@@ -198,6 +214,7 @@ public class FirstFragment extends Fragment {
             runTimer();
         } else if (marche==0 && arrete==1) {
             hideEverything();
+            position = 0;
         }
     }
 
@@ -209,6 +226,8 @@ public class FirstFragment extends Fragment {
         textCounter.setText("15");
         imageView.setAnimation(fadeIn);
         imageView.setImageResource(R.drawable.desi);
+        imageView2.setVisibility(View.INVISIBLE);
+        imageView3.setVisibility(View.INVISIBLE);
     }
 
     private void runTimer() {
@@ -217,7 +236,12 @@ public class FirstFragment extends Fragment {
             Toast.makeText(context, positions[position], Toast.LENGTH_LONG).show();
             timer.start();
             progressText.setText(String.format("Position %d/%d", position+1, positions.length));
-
+            if (position==6) {
+                imageView2.setVisibility(View.VISIBLE);
+                imageView3.setVisibility(View.VISIBLE);
+                imageView2.startAnimation(rotation);
+                imageView3.startAnimation(rotation);
+            }
             imageView.startAnimation(fadeOut);
             imageView.setVisibility(View.INVISIBLE);
             imageView.setVisibility(View.VISIBLE);
@@ -228,6 +252,7 @@ public class FirstFragment extends Fragment {
         } else {
             waiting = false;
             mediaPlayer3.start();
+            position = 0;
             Toast.makeText(context, "Fin", Toast.LENGTH_LONG).show();
             hideEverything();
         }

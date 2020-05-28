@@ -20,5 +20,6 @@
             </intent-filter>
         </activity>
     </application>
+    <uses-permission android:name="com.google.android.things.permission.USE_PERIPHERAL_IO" />
 
 </manifest>
