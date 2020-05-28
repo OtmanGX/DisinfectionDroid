@@ -40,11 +40,11 @@ public class FirstFragment extends Fragment {
     private static final String[] positions = new String[]{
             "POSITION 1 FORM 1",
             "POSITION 1 FORM 2",
-//            "POSITION 2 FORM 1" ,
-//            "POSITION 2 FORM 2",
-//            "POSITION 3 FORM 1",
-//            "POSITION 3 FORM 2",
-//            "POSITION 4 FORM 2",
+            "POSITION 2 FORM 1" ,
+            "POSITION 2 FORM 2",
+            "POSITION 3 FORM 1",
+            "POSITION 3 FORM 2",
+            "POSITION 4 FORM 2",
     };
     private static final int[] image_positions = new int[] {
             R.drawable.pos1,
