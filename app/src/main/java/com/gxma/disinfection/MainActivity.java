@@ -28,16 +28,6 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-
-    @Override
-    public boolean onPrepareOptionsMenu(Menu menu) {
-
-//        MenuItem item = menu.findItem(R.id.close);
-//
-//        item.setEnabled(false);
-
-        return true;
-    }
 //
 //    @Override
 //    public boolean onOptionsItemSelected(MenuItem item) {

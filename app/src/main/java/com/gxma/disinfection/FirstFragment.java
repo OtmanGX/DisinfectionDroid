@@ -22,6 +22,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -92,7 +93,9 @@ public class FirstFragment extends Fragment {
     View view;
     String data = "";
 
+    MenuItem diskMenuItem;
     ConstraintLayout layout ;
+    ConstraintSet set;
     ImageView imageView, imageView2, imageView3;
     ImageView focusedImage;
     private TextView textCounter, progressText;
@@ -119,6 +122,7 @@ public class FirstFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
+        set = new ConstraintSet();
         context = this.getContext();
         mHandler = new MyHandler((MainActivity) getActivity());
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
@@ -145,16 +149,13 @@ public class FirstFragment extends Fragment {
                     e.printStackTrace();
                 }
             }
-
-            ;
         };
     }
 
     @Override
     public void onStop() {
-//        mPhysicaloid.clearReadListener();
-//        mPhysicaloid.close();
-//        mPhysicaloid=null;
+        getActivity().unregisterReceiver(broadcastReceiver);
+        getActivity().unbindService(usbConnection);
         super.onStop();
     }
 
@@ -178,15 +179,20 @@ public class FirstFragment extends Fragment {
     }
 
     @Override
+    public void onPrepareOptionsMenu(@NonNull Menu menu) {
+        diskMenuItem = menu.findItem(R.id.disk);
+        super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
         final Activity activity = this.getActivity();
         if (id == R.id.start) {
 //            openConnection();
-//            marche=1; arrete=0;
-//            startJob();
+            marche=1; arrete=0;
+            startJob();
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -206,17 +212,17 @@ public class FirstFragment extends Fragment {
         mediaPlayer2 = MediaPlayer.create(context, R.raw.stop1);
         mediaPlayer3 = MediaPlayer.create(context, R.raw.stop2);
 
-        timer = new CountDownTimer(5000, 1000) {
+        timer = new CountDownTimer(15000, 1000) {
             @Override
             public void onTick(long l) {
                 long sec = TimeUnit.MILLISECONDS.toSeconds(l);
                 if (sec>=1) mediaPlayer.start();
                 textCounter.setText(String.format("%02d", sec));
-
             }
 
             @Override
             public void onFinish() {
+                Toast.makeText(context, "Fin du position", Toast.LENGTH_LONG).show();
                 mediaPlayer2.start();
                 textCounter.setText("0");
                 runTimer();
@@ -224,8 +230,9 @@ public class FirstFragment extends Fragment {
         };
     }
 
-    public void startJob(){
+    public void startJob() {
         if (marche==1 && arrete==0 && waiting==false) {
+            diskMenuItem.setIcon(R.drawable.ic_red_24dp);
             waiting = true;
             textCounter.setVisibility(View.VISIBLE);
             progressText.setVisibility(View.VISIBLE);
@@ -235,6 +242,7 @@ public class FirstFragment extends Fragment {
                 view.findViewById(id).setVisibility(View.VISIBLE);
             runTimer();
         } else if (marche==0 && arrete==1) {
+            diskMenuItem.setIcon(R.drawable.ic_green_24dp);
             hideEverything();
             position = 0;
         }
@@ -247,7 +255,6 @@ public class FirstFragment extends Fragment {
         progressText.setVisibility(View.INVISIBLE);
         textCounter.setText("15");
         imageView.setAnimation(fadeIn);
-//        imageView.setImageResource(R.drawable.desi);
         imageView3.clearAnimation();
         imageView2.clearAnimation();
         imageView2.setVisibility(View.INVISIBLE);
@@ -266,8 +273,7 @@ public class FirstFragment extends Fragment {
     private void runTimer() {
         if (position<positions.length)
         {
-            Toast.makeText(context, positions[position], Toast.LENGTH_LONG).show();
-
+            set.clone(layout);
             if (position != 0) {
                 ColorMatrix matrix = new ColorMatrix();
                 matrix.setSaturation(0);
@@ -275,8 +281,6 @@ public class FirstFragment extends Fragment {
                 ((ImageView)view.findViewById(image_widgets[position-1]))
                         .setColorFilter(filter);
             }
-            ConstraintSet set = new ConstraintSet();
-            set.clone(layout);
             set.connect(textCounter.getId(),
                     ConstraintSet.TOP,
                     image_widgets[position],
@@ -289,21 +293,30 @@ public class FirstFragment extends Fragment {
                     ConstraintSet.BOTTOM,
                     image_widgets[position],
                     ConstraintSet.BOTTOM, 2);
-            set.applyTo(layout);
             if (position+1<positions.length) {
                 focusedImage = view.findViewById(image_widgets[position+1]);
                 focusedImage.setFocusableInTouchMode(true);
                 focusedImage.requestFocus();
             }
-            timer.start();
-//            progressText.setText(String.format("Position %d/%d", position+1, positions.length));
-            progressText.setText(positions[position]);
             if (position==6) {
                 imageView2.setVisibility(View.VISIBLE);
                 imageView3.setVisibility(View.VISIBLE);
+                set.connect(imageView2.getId(),
+                        ConstraintSet.TOP,
+                        image_widgets[position],
+                        ConstraintSet.TOP, 3);
+                set.connect(imageView3.getId(),
+                        ConstraintSet.TOP,
+                        image_widgets[position],
+                        ConstraintSet.TOP, 3);
                 imageView2.startAnimation(rotation);
                 imageView3.startAnimation(rotation);
             }
+            timer.start();
+//            progressText.setText(String.format("Position %d/%d", position+1, positions.length));
+            progressText.setText(positions[position]);
+
+            set.applyTo(layout);
 //            imageView.startAnimation(fadeOut);
 //            imageView.setVisibility(View.INVISIBLE);
 //            imageView.setVisibility(View.VISIBLE);
@@ -316,6 +329,7 @@ public class FirstFragment extends Fragment {
             mediaPlayer3.start();
             position = 0;
             Toast.makeText(context, "Fin", Toast.LENGTH_LONG).show();
+            diskMenuItem.setIcon(R.drawable.ic_green_24dp);
             hideEverything();
         }
 
@@ -362,6 +376,8 @@ public class FirstFragment extends Fragment {
                     break;
                 case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
                     Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
+                    marche = 0; arrete = 1;
+                    startJob();
                     break;
                 case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
                     Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();

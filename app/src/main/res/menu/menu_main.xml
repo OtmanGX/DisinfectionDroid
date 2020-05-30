@@ -8,10 +8,10 @@
         android:icon="@android:drawable/ic_lock_idle_charging"
         android:title="@string/start"
         app:showAsAction="always" />
-<!--    <item-->
-<!--        android:id="@+id/close"-->
-<!--        android:icon="@android:drawable/ic_lock_idle_charging"-->
-<!--        android:menuCategory="system"-->
-<!--        android:title="@string/close"-->
-<!--        app:showAsAction="ifRoom|withText" />-->
+    <item
+        android:id="@+id/disk"
+        android:orderInCategory="100"
+        android:icon="@drawable/ic_green_24dp"
+        android:title="@string/start"
+        app:showAsAction="always" />
 </menu>
