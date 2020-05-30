@@ -3,8 +3,13 @@ package com.gxma.disinfection;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -12,6 +17,9 @@ import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -30,21 +38,24 @@ import android.widget.Toast;
 import com.felhr.usbserial.UsbSerialDevice;
 import com.felhr.usbserial.UsbSerialInterface;
 import com.physicaloid.lib.Physicaloid;
-import com.physicaloid.lib.usb.driver.uart.ReadLisener;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.ref.WeakReference;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.fragment.app.Fragment;
+
 
 public class FirstFragment extends Fragment {
     private Physicaloid mPhysicaloid;
 
-    int marche=0, arrete=1;
+    static int marche=0, arrete=1;
     private int position = 0;
     private String dataStock="";
     boolean waiting = false ;
@@ -54,10 +65,10 @@ public class FirstFragment extends Fragment {
             "POSITION 1 FORM 1",
             "POSITION 1 FORM 2",
             "POSITION 2 FORM 1" ,
-//            "POSITION 2 FORM 2",
-//            "POSITION 3 FORM 1",
-//            "POSITION 3 FORM 2",
-//            "POSITION 4 FORM 2",
+            "POSITION 2 FORM 2",
+            "POSITION 3 FORM 1",
+            "POSITION 3 FORM 2",
+            "POSITION 4 FORM 2",
     };
     private static final int[] image_positions = new int[] {
             R.drawable.pos1,
@@ -68,9 +79,22 @@ public class FirstFragment extends Fragment {
             R.drawable.pos6,
             R.drawable.pos7
     };
+    private static final int[] image_widgets = new int[] {
+            R.id.imageView1,
+            R.id.imageView2,
+            R.id.imageView3,
+            R.id.imageView4,
+            R.id.imageView5,
+            R.id.imageView6,
+            R.id.imageView7,
+    };
     Context context ;
+    View view;
+    String data = "";
 
+    ConstraintLayout layout ;
     ImageView imageView, imageView2, imageView3;
+    ImageView focusedImage;
     private TextView textCounter, progressText;
     Animation fadeIn = new AlphaAnimation(1, 0);
     Animation fadeOut = new AlphaAnimation(1, 0);
@@ -87,27 +111,35 @@ public class FirstFragment extends Fragment {
     public final String ACTION_USB_PERMISSION = "confoosball.lmu.mff.confoosball.USB_PERMISSION";
     UsbSerialInterface.UsbReadCallback mCallback;
 
+    // new
+    private UsbService usbService;
+    private MyHandler mHandler;
+
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         context = this.getContext();
+        mHandler = new MyHandler((MainActivity) getActivity());
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         mCallback = new UsbSerialInterface.UsbReadCallback() {
             //Defining a Callback which triggers whenever data is read.
             @Override
             public void onReceivedData(byte[] arg0) {
-                String data = null;
                 try {
-                    data = new String(arg0, "UTF-8");
-                    {
-                        final String data_split[] = data.split(";");
-                        if(data_split[0].indexOf("S")>1){
-                            marche = Integer.parseInt(data_split[1]);
-                            arrete = Integer.parseInt(data_split[2]);
-                            startJob();
+                    String dataStock = "";
+                    data += new String(arg0, "UTF-8");
+                    int index = data.indexOf('S');
+                    if (index>=0 && data.indexOf('F')>index) {
+                        for(int i=index;i<data.length();i++)
+                        {
+                            dataStock += data.charAt(i);
                         }
-                        dataStock="";
+                        final String data_split[] = dataStock.split(";");
+                        marche = Integer.parseInt(data_split[1]);
+                        arrete = Integer.parseInt(data_split[2]);
+                        startJob();
+                        data = "";
                     }
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
@@ -128,11 +160,8 @@ public class FirstFragment extends Fragment {
 
     @Override
     public void onStart() {
-//        mPhysicaloid = new Physicaloid(context);
-//        mPhysicaloid.setBaudrate(9600);
         fadeIn.setInterpolator(new DecelerateInterpolator()); //add this
         fadeIn.setDuration(500);
-
         fadeOut.setInterpolator(new AccelerateInterpolator()); //and this
         fadeOut.setStartOffset(500);
         fadeOut.setDuration(500);
@@ -153,35 +182,7 @@ public class FirstFragment extends Fragment {
         int id = item.getItemId();
         final Activity activity = this.getActivity();
         if (id == R.id.start) {
-
-//            class SerialTask extends AsyncTask<Void, Void, Void> {
-//                @Override
-//                protected Void doInBackground(Void... voids) {
-//                    while (mPhysicaloid!=null) {
-//                        Log.w("Thread", "enter the loop");
-//                        activity.runOnUiThread(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                if (!mPhysicaloid.isOpened() && mPhysicaloid.open()) {
-//                                    mPhysicaloid.open();
-//                                    startSerialReading();
-//                                }
-//                                else if (!mPhysicaloid.isOpened()) {
-//                                    Toast.makeText(context, "Probleme de connexion", Toast.LENGTH_SHORT).show();
-//                                }
-//                            }
-//                        });
-//                        try {
-//                            Thread.sleep(1000);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                    return null;
-//                }
-//            }
-//            new SerialTask().execute();
-            openConnection();
+//            openConnection();
 //            marche=1; arrete=0;
 //            startJob();
         }
@@ -191,6 +192,8 @@ public class FirstFragment extends Fragment {
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        this.view = view;
+        layout = view.findViewById(R.id.layout);
         textCounter = view.findViewById(R.id.textView);
         progressText = view.findViewById(R.id.textView2);
         imageView = view.findViewById(R.id.imageView);
@@ -203,7 +206,7 @@ public class FirstFragment extends Fragment {
         mediaPlayer2 = MediaPlayer.create(context, R.raw.stop1);
         mediaPlayer3 = MediaPlayer.create(context, R.raw.stop2);
 
-        timer = new CountDownTimer(15000, 1000) {
+        timer = new CountDownTimer(5000, 1000) {
             @Override
             public void onTick(long l) {
                 long sec = TimeUnit.MILLISECONDS.toSeconds(l);
@@ -221,42 +224,15 @@ public class FirstFragment extends Fragment {
         };
     }
 
-    public void startSerialReading() {
-        final Activity activity = this.getActivity();
-        mPhysicaloid.addReadListener(new ReadLisener() {
-            @Override
-            public void onRead(final int size) {
-                buf = new byte[size];
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        mPhysicaloid.read(buf, size);
-                        for(int i=0;i<size;i++)
-                        {
-                            char a=(char)buf[i];
-                            dataStock += a;
-                            if(a=='F' )
-                            {
-                                final String data[] = dataStock.split(";");
-                                if(data[0].indexOf("S")>1){
-                                    marche = Integer.parseInt(data[1]);
-                                    arrete = Integer.parseInt(data[2]);
-                                    startJob();
-                                }
-                                dataStock="";
-                            }
-                        }
-                    }});
-            }
-        });
-    }
-
     public void startJob(){
         if (marche==1 && arrete==0 && waiting==false) {
             waiting = true;
             textCounter.setVisibility(View.VISIBLE);
             progressText.setVisibility(View.VISIBLE);
             progressBar.setVisibility(View.VISIBLE);
+            imageView.setVisibility(View.GONE);
+            for (int id:image_widgets)
+                view.findViewById(id).setVisibility(View.VISIBLE);
             runTimer();
         } else if (marche==0 && arrete==1) {
             hideEverything();
@@ -271,31 +247,68 @@ public class FirstFragment extends Fragment {
         progressText.setVisibility(View.INVISIBLE);
         textCounter.setText("15");
         imageView.setAnimation(fadeIn);
-        imageView.setImageResource(R.drawable.desi);
+//        imageView.setImageResource(R.drawable.desi);
         imageView3.clearAnimation();
         imageView2.clearAnimation();
         imageView2.setVisibility(View.INVISIBLE);
         imageView3.setVisibility(View.INVISIBLE);
-
+        imageView.setVisibility(View.VISIBLE);
+        imageView.setFocusableInTouchMode(true);
+        imageView.requestFocus();
+        ImageView img;
+        for (int id:image_widgets){
+            img = view.findViewById(id);
+            img.setVisibility(View.GONE);
+            img.clearColorFilter();
+        }
     }
 
     private void runTimer() {
         if (position<positions.length)
         {
             Toast.makeText(context, positions[position], Toast.LENGTH_LONG).show();
+
+            if (position != 0) {
+                ColorMatrix matrix = new ColorMatrix();
+                matrix.setSaturation(0);
+                ColorMatrixColorFilter filter = new ColorMatrixColorFilter(matrix);
+                ((ImageView)view.findViewById(image_widgets[position-1]))
+                        .setColorFilter(filter);
+            }
+            ConstraintSet set = new ConstraintSet();
+            set.clone(layout);
+            set.connect(textCounter.getId(),
+                    ConstraintSet.TOP,
+                    image_widgets[position],
+                    ConstraintSet.TOP, 0);
+            set.connect(progressText.getId(),
+                    ConstraintSet.TOP,
+                    textCounter.getId(),
+                    ConstraintSet.BOTTOM, 5);
+            set.connect(progressBar.getId(),
+                    ConstraintSet.BOTTOM,
+                    image_widgets[position],
+                    ConstraintSet.BOTTOM, 2);
+            set.applyTo(layout);
+            if (position+1<positions.length) {
+                focusedImage = view.findViewById(image_widgets[position+1]);
+                focusedImage.setFocusableInTouchMode(true);
+                focusedImage.requestFocus();
+            }
             timer.start();
-            progressText.setText(String.format("Position %d/%d", position+1, positions.length));
+//            progressText.setText(String.format("Position %d/%d", position+1, positions.length));
+            progressText.setText(positions[position]);
             if (position==6) {
                 imageView2.setVisibility(View.VISIBLE);
                 imageView3.setVisibility(View.VISIBLE);
                 imageView2.startAnimation(rotation);
                 imageView3.startAnimation(rotation);
             }
-            imageView.startAnimation(fadeOut);
-            imageView.setVisibility(View.INVISIBLE);
-            imageView.setVisibility(View.VISIBLE);
-            imageView.startAnimation(fadeIn);
-            imageView.setImageResource(image_positions[position]);
+//            imageView.startAnimation(fadeOut);
+//            imageView.setVisibility(View.INVISIBLE);
+//            imageView.setVisibility(View.VISIBLE);
+//            imageView.startAnimation(fadeIn);
+//            imageView.setImageResource(image_positions[position]);
             progressBar.setProgress(position);
             position++;
         } else {
@@ -337,37 +350,123 @@ public class FirstFragment extends Fragment {
     private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(ACTION_USB_PERMISSION)) {
-                boolean granted =
-                        intent.getExtras().getBoolean(UsbManager.EXTRA_PERMISSION_GRANTED);
-                if (granted) {
-                    connection = usbManager.openDevice(device);
-                    serialPort = UsbSerialDevice.createUsbSerialDevice(device, connection);
-                    if (serialPort != null) {
-                        if (serialPort.open()) { // Set Serial Connection Parameters.
-                            serialPort.setBaudRate(9600);
-                            serialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
-                            serialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
-                            serialPort.setParity(UsbSerialInterface.PARITY_NONE);
-                            serialPort.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
-                            serialPort.read(mCallback);
-                            Log.d("SERIAL", "SERIAL CONNECTION OPENED!");
-
-                        } else {
-                            Log.d("SERIAL", "PORT NOT OPEN");
-                        }
-                    } else {
-                        Log.d("SERIAL", "PORT IS NULL");
-                    }
-                } else {
-                    Log.d("SERIAL", "PERMISSION NOT GRANTED");
-                }
-            } else if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
-                openConnection();
-            } else if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
-                serialPort.close(); // The connection is automatically closed, when the device is detached
+            switch (intent.getAction()) {
+                case UsbService.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
+                    Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
+                    Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_NO_USB: // NO USB CONNECTED
+                    Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
+                    Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
+                    break;
+                case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
+                    Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();
+                    break;
             }
-        };
+        }
     };
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        setFilters();  // Start listening notifications from UsbService
+        startService(UsbService.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getActivity().unregisterReceiver(broadcastReceiver);
+        getActivity().unbindService(usbConnection);
+    }
+
+    private final ServiceConnection usbConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName arg0, IBinder arg1) {
+            usbService = ((UsbService.UsbBinder) arg1).getService();
+            usbService.setHandler(mHandler);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            usbService = null;
+        }
+    };
+
+    private void startService(Class<?> service, ServiceConnection serviceConnection, Bundle extras) {
+        if (!UsbService.SERVICE_CONNECTED) {
+            Intent startService = new Intent(getContext(), service);
+            if (extras != null && !extras.isEmpty()) {
+                Set<String> keys = extras.keySet();
+                for (String key : keys) {
+                    String extra = extras.getString(key);
+                    startService.putExtra(key, extra);
+                }
+            }
+            getActivity().startService(startService);
+        }
+        Intent bindingIntent = new Intent(getActivity(), service);
+        getActivity().bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+
+    private void setFilters() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(UsbService.ACTION_USB_PERMISSION_GRANTED);
+        filter.addAction(UsbService.ACTION_NO_USB);
+        filter.addAction(UsbService.ACTION_USB_DISCONNECTED);
+        filter.addAction(UsbService.ACTION_USB_NOT_SUPPORTED);
+        filter.addAction(UsbService.ACTION_USB_PERMISSION_NOT_GRANTED);
+        getActivity().registerReceiver(broadcastReceiver, filter);
+    }
+
+
+    /*
+     * This handler will be passed to UsbService. Data received from serial port is displayed through this handler
+     */
+    private class MyHandler extends Handler {
+        private final WeakReference<MainActivity> mActivity;
+        String data = "";
+
+        public MyHandler(MainActivity activity) {
+            mActivity = new WeakReference<>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case UsbService.MESSAGE_FROM_SERIAL_PORT:
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            data += (String) msg.obj;
+                            String dataStock = "";
+                            int index = data.indexOf('S');
+                            if (index>=0 && data.indexOf('F')>index) {
+                                for (int i = index; i < data.length(); i++) {
+                                    dataStock += data.charAt(i);
+                                }
+                                final String data_split[] = dataStock.split(";");
+                                marche = Integer.parseInt(data_split[1]);
+                                arrete = Integer.parseInt(data_split[2]);
+                                startJob();
+                                data = "";
+                            }
+                        }
+                    });
+//                    mActivity.get().display.append(data);
+                    break;
+                case UsbService.CTS_CHANGE:
+                    Toast.makeText(mActivity.get(), "CTS_CHANGE",Toast.LENGTH_LONG).show();
+                    break;
+                case UsbService.DSR_CHANGE:
+                    Toast.makeText(mActivity.get(), "DSR_CHANGE",Toast.LENGTH_LONG).show();
+                    break;
+            }
+        }
+    }
 }

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.gxma.disinfection">
-    <uses-feature android:name="android.hardware.usb.host" />
+
+    <uses-feature android:name="android.hardware.usb.host"
+        android:required="true"/>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -18,10 +21,12 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
-    </application>
-    <uses-permission android:name="com.google.android.things.permission.USE_PERIPHERAL_IO" />
 
+        <service
+            android:name=".UsbService"
+            android:enabled="true"
+            android:exported="true"></service>
+    </application>
 
 </manifest>
