@@ -1,7 +1,13 @@
 package com.gxma.disinfection;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbDeviceConnection;
+import android.hardware.usb.UsbManager;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -21,9 +27,15 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.felhr.usbserial.UsbSerialDevice;
+import com.felhr.usbserial.UsbSerialInterface;
 import com.physicaloid.lib.Physicaloid;
 import com.physicaloid.lib.usb.driver.uart.ReadLisener;
 
+import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.NonNull;
@@ -42,10 +54,10 @@ public class FirstFragment extends Fragment {
             "POSITION 1 FORM 1",
             "POSITION 1 FORM 2",
             "POSITION 2 FORM 1" ,
-            "POSITION 2 FORM 2",
-            "POSITION 3 FORM 1",
-            "POSITION 3 FORM 2",
-            "POSITION 4 FORM 2",
+//            "POSITION 2 FORM 2",
+//            "POSITION 3 FORM 1",
+//            "POSITION 3 FORM 2",
+//            "POSITION 4 FORM 2",
     };
     private static final int[] image_positions = new int[] {
             R.drawable.pos1,
@@ -67,25 +79,57 @@ public class FirstFragment extends Fragment {
     MediaPlayer mediaPlayer, mediaPlayer2, mediaPlayer3;
     ProgressBar progressBar;
 
+    // Serial
+    UsbManager usbManager;
+    UsbDevice device;
+    UsbSerialDevice serialPort;
+    UsbDeviceConnection connection;
+    public final String ACTION_USB_PERMISSION = "confoosball.lmu.mff.confoosball.USB_PERMISSION";
+    UsbSerialInterface.UsbReadCallback mCallback;
+
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         context = this.getContext();
+        usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+        mCallback = new UsbSerialInterface.UsbReadCallback() {
+            //Defining a Callback which triggers whenever data is read.
+            @Override
+            public void onReceivedData(byte[] arg0) {
+                String data = null;
+                try {
+                    data = new String(arg0, "UTF-8");
+                    {
+                        final String data_split[] = data.split(";");
+                        if(data_split[0].indexOf("S")>1){
+                            marche = Integer.parseInt(data_split[1]);
+                            arrete = Integer.parseInt(data_split[2]);
+                            startJob();
+                        }
+                        dataStock="";
+                    }
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            ;
+        };
     }
 
     @Override
     public void onStop() {
-        mPhysicaloid.clearReadListener();
-        mPhysicaloid.close();
-        mPhysicaloid=null;
+//        mPhysicaloid.clearReadListener();
+//        mPhysicaloid.close();
+//        mPhysicaloid=null;
         super.onStop();
     }
 
     @Override
     public void onStart() {
-        mPhysicaloid = new Physicaloid(context);
-        mPhysicaloid.setBaudrate(9600);
+//        mPhysicaloid = new Physicaloid(context);
+//        mPhysicaloid.setBaudrate(9600);
         fadeIn.setInterpolator(new DecelerateInterpolator()); //add this
         fadeIn.setDuration(500);
 
@@ -109,33 +153,35 @@ public class FirstFragment extends Fragment {
         int id = item.getItemId();
         final Activity activity = this.getActivity();
         if (id == R.id.start) {
-            class SerialTask extends AsyncTask<Void, Void, Void> {
-                @Override
-                protected Void doInBackground(Void... voids) {
-                    while (mPhysicaloid!=null) {
-                        Log.w("Thread", "enter the loop");
-                        activity.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (!mPhysicaloid.isOpened() && mPhysicaloid.open()) {
-                                    mPhysicaloid.open();
-                                    startSerialReading();
-                                }
-                                else if (!mPhysicaloid.isOpened()) {
-                                    Toast.makeText(context, "Probleme de connexion", Toast.LENGTH_SHORT).show();
-                                }
-                            }
-                        });
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    return null;
-                }
-            }
-            new SerialTask().execute();
+
+//            class SerialTask extends AsyncTask<Void, Void, Void> {
+//                @Override
+//                protected Void doInBackground(Void... voids) {
+//                    while (mPhysicaloid!=null) {
+//                        Log.w("Thread", "enter the loop");
+//                        activity.runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                if (!mPhysicaloid.isOpened() && mPhysicaloid.open()) {
+//                                    mPhysicaloid.open();
+//                                    startSerialReading();
+//                                }
+//                                else if (!mPhysicaloid.isOpened()) {
+//                                    Toast.makeText(context, "Probleme de connexion", Toast.LENGTH_SHORT).show();
+//                                }
+//                            }
+//                        });
+//                        try {
+//                            Thread.sleep(1000);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                    return null;
+//                }
+//            }
+//            new SerialTask().execute();
+            openConnection();
 //            marche=1; arrete=0;
 //            startJob();
         }
@@ -226,8 +272,11 @@ public class FirstFragment extends Fragment {
         textCounter.setText("15");
         imageView.setAnimation(fadeIn);
         imageView.setImageResource(R.drawable.desi);
+        imageView3.clearAnimation();
+        imageView2.clearAnimation();
         imageView2.setVisibility(View.INVISIBLE);
         imageView3.setVisibility(View.INVISIBLE);
+
     }
 
     private void runTimer() {
@@ -258,5 +307,67 @@ public class FirstFragment extends Fragment {
         }
 
     }
+
+    public void openConnection() {
+        HashMap usbDevices = usbManager.getDeviceList();
+        if (!usbDevices.isEmpty()) {
+            boolean keep = true;
+            for (Object entry : usbDevices.entrySet()) {
+                device = (UsbDevice) ((Entry)entry).getValue();
+                int deviceVID = device.getVendorId();
+                Toast.makeText(context, "deviceId: "+String.valueOf(deviceVID),Toast.LENGTH_SHORT).show();
+                if (deviceVID == 0x2341)//Arduino Vendor ID
+                {
+                    Toast.makeText(context, "Arduino Found",Toast.LENGTH_SHORT).show();
+                    PendingIntent pi = PendingIntent.getBroadcast(context, 0,
+                            new Intent(ACTION_USB_PERMISSION), 0);
+                    usbManager.requestPermission(device, pi);
+                    keep = false;
+                } else {
+                    connection = null;
+                    device = null;
+                }
+
+                if (!keep)
+                    break;
+            }
+        }
+    }
+
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(ACTION_USB_PERMISSION)) {
+                boolean granted =
+                        intent.getExtras().getBoolean(UsbManager.EXTRA_PERMISSION_GRANTED);
+                if (granted) {
+                    connection = usbManager.openDevice(device);
+                    serialPort = UsbSerialDevice.createUsbSerialDevice(device, connection);
+                    if (serialPort != null) {
+                        if (serialPort.open()) { // Set Serial Connection Parameters.
+                            serialPort.setBaudRate(9600);
+                            serialPort.setDataBits(UsbSerialInterface.DATA_BITS_8);
+                            serialPort.setStopBits(UsbSerialInterface.STOP_BITS_1);
+                            serialPort.setParity(UsbSerialInterface.PARITY_NONE);
+                            serialPort.setFlowControl(UsbSerialInterface.FLOW_CONTROL_OFF);
+                            serialPort.read(mCallback);
+                            Log.d("SERIAL", "SERIAL CONNECTION OPENED!");
+
+                        } else {
+                            Log.d("SERIAL", "PORT NOT OPEN");
+                        }
+                    } else {
+                        Log.d("SERIAL", "PORT IS NULL");
+                    }
+                } else {
+                    Log.d("SERIAL", "PERMISSION NOT GRANTED");
+                }
+            } else if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+                openConnection();
+            } else if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+                serialPort.close(); // The connection is automatically closed, when the device is detached
+            }
+        };
+    };
 
 }
