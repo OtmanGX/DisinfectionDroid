@@ -58,10 +58,9 @@ public class FirstFragment extends Fragment {
 
     static int marche=0, arrete=1;
     private int position = 0;
-    private String dataStock="";
     boolean waiting = false ;
     private CountDownTimer timer;
-    private byte[] buf ;
+//    private byte[] buf ;
     private static final String[] positions = new String[]{
             "POSITION 1 FORM 1",
             "POSITION 1 FORM 2",
@@ -446,12 +445,13 @@ public class FirstFragment extends Fragment {
      */
     private class MyHandler extends Handler {
         private final WeakReference<MainActivity> mActivity;
-        String data = "";
 
         public MyHandler(MainActivity activity) {
             mActivity = new WeakReference<>(activity);
         }
 
+        String dataStock = "";
+        String data_split[] ;
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -460,13 +460,10 @@ public class FirstFragment extends Fragment {
                         @Override
                         public void run() {
                             data += (String) msg.obj;
-                            String dataStock = "";
                             int index = data.indexOf('S');
                             if (index>=0 && data.indexOf('F')>index) {
-                                for (int i = index; i < data.length(); i++) {
-                                    dataStock += data.charAt(i);
-                                }
-                                final String data_split[] = dataStock.split(";");
+                                dataStock = data.substring(index);
+                                data_split = dataStock.split(";");
                                 marche = Integer.parseInt(data_split[1]);
                                 arrete = Integer.parseInt(data_split[2]);
                                 startJob();
