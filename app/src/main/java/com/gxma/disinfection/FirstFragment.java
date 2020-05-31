@@ -242,10 +242,17 @@ public class FirstFragment extends Fragment {
                 view.findViewById(id).setVisibility(View.VISIBLE);
             runTimer();
         } else if (marche==0 && arrete==1) {
-            diskMenuItem.setIcon(R.drawable.ic_green_24dp);
-            hideEverything();
-            position = 0;
+            stopJob();
         }
+    }
+
+    public void stopJob() {
+        waiting = false;
+        mediaPlayer3.start();
+        position = 0;
+        Toast.makeText(context, "Fin", Toast.LENGTH_LONG).show();
+        diskMenuItem.setIcon(R.drawable.ic_green_24dp);
+        hideEverything();
     }
 
     private void hideEverything() {
@@ -271,8 +278,7 @@ public class FirstFragment extends Fragment {
     }
 
     private void runTimer() {
-        if (position<positions.length)
-        {
+        if (position<positions.length) {
             set.clone(layout);
             if (position != 0) {
                 ColorMatrix matrix = new ColorMatrix();
@@ -324,14 +330,8 @@ public class FirstFragment extends Fragment {
 //            imageView.setImageResource(image_positions[position]);
             progressBar.setProgress(position);
             position++;
-        } else {
-            waiting = false;
-            mediaPlayer3.start();
-            position = 0;
-            Toast.makeText(context, "Fin", Toast.LENGTH_LONG).show();
-            diskMenuItem.setIcon(R.drawable.ic_green_24dp);
-            hideEverything();
-        }
+        } else
+            stopJob();
 
     }
 
@@ -377,7 +377,7 @@ public class FirstFragment extends Fragment {
                 case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
                     Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
                     marche = 0; arrete = 1;
-                    startJob();
+                    stopJob();
                     break;
                 case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
                     Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();
