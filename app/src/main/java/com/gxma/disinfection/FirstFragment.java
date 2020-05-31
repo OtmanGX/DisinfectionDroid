@@ -111,7 +111,6 @@ public class FirstFragment extends Fragment {
     UsbSerialDevice serialPort;
     UsbDeviceConnection connection;
     public final String ACTION_USB_PERMISSION = "confoosball.lmu.mff.confoosball.USB_PERMISSION";
-    UsbSerialInterface.UsbReadCallback mCallback;
 
     // new
     private UsbService usbService;
@@ -125,30 +124,6 @@ public class FirstFragment extends Fragment {
         context = this.getContext();
         mHandler = new MyHandler((MainActivity) getActivity());
         usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
-        mCallback = new UsbSerialInterface.UsbReadCallback() {
-            //Defining a Callback which triggers whenever data is read.
-            @Override
-            public void onReceivedData(byte[] arg0) {
-                try {
-                    String dataStock = "";
-                    data += new String(arg0, "UTF-8");
-                    int index = data.indexOf('S');
-                    if (index>=0 && data.indexOf('F')>index) {
-                        for(int i=index;i<data.length();i++)
-                        {
-                            dataStock += data.charAt(i);
-                        }
-                        final String data_split[] = dataStock.split(";");
-                        marche = Integer.parseInt(data_split[1]);
-                        arrete = Integer.parseInt(data_split[2]);
-                        startJob();
-                        data = "";
-                    }
-                } catch (UnsupportedEncodingException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
     }
 
     @Override
