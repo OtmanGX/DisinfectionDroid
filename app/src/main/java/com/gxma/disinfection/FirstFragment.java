@@ -2,6 +2,9 @@ package com.gxma.disinfection;
 
 import android.app.Activity;
 import android.app.PendingIntent;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -56,7 +59,8 @@ import androidx.fragment.app.Fragment;
 public class FirstFragment extends Fragment {
     private Physicaloid mPhysicaloid;
 
-    static int marche=0, arrete=1;
+    static int marche=0;
+    static int arrete=1;
     private int position = 0;
     boolean waiting = false ;
     private CountDownTimer timer;
@@ -114,7 +118,13 @@ public class FirstFragment extends Fragment {
 
     // new
     private UsbService usbService;
+    private MyBluetoothService bluetoothService;
     private MyHandler mHandler;
+
+    BluetoothAdapter btAdapter;
+    BluetoothSocket btSocket = null;
+
+    private static final int REQUEST_ENABLE_BT = 448;
 
 
     public void onCreate(Bundle savedInstanceState) {
@@ -123,18 +133,25 @@ public class FirstFragment extends Fragment {
         set = new ConstraintSet();
         context = this.getContext();
         mHandler = new MyHandler((MainActivity) getActivity());
-        usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+//        usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+
     }
 
     @Override
     public void onStop() {
-        getActivity().unregisterReceiver(broadcastReceiver);
+//        getActivity().unregisterReceiver(broadcastReceiver);
         getActivity().unbindService(usbConnection);
         super.onStop();
     }
 
     @Override
     public void onStart() {
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (!btAdapter.isEnabled()) {
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
+
         fadeIn.setInterpolator(new DecelerateInterpolator()); //add this
         fadeIn.setDuration(500);
         fadeOut.setInterpolator(new AccelerateInterpolator()); //and this
@@ -165,7 +182,9 @@ public class FirstFragment extends Fragment {
         if (id == R.id.start) {
 //            openConnection();
             marche=1; arrete=0;
-            startJob();
+            btAdapter = BluetoothAdapter.getDefaultAdapter();
+            System.out.println(btAdapter.getBondedDevices());
+//            startJob();
         }
         return super.onOptionsItemSelected(item);
     }
@@ -338,57 +357,58 @@ public class FirstFragment extends Fragment {
     private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            switch (intent.getAction()) {
-                case UsbService.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
-                    Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
-                    break;
-                case UsbService.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
-                    Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
-                    break;
-                case UsbService.ACTION_NO_USB: // NO USB CONNECTED
-                    Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
-                    break;
-                case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
-                    Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
-                    marche = 0; arrete = 1;
-                    stopJob();
-                    break;
-                case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
-                    Toast.makeText(context, "USB device not supported", Toast.LENGTH_SHORT).show();
-                    break;
-            }
+//            switch (intent.getAction()) {
+//                case MyBluetoothService.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
+//                    Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
+//                    break;
+//                case UsbService.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
+//                    Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
+//                    break;
+//                case MyBluetoothService.MessageConstants.MESSAGE_TOAST: // NO USB CONNECTED
+//                    Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
+//                    break;
+//                case MyBluetoothService.MessageConstants.ERROR: // USB DISCONNECTED
+//                    Toast.makeText(context, "Bluetooth disconnected", Toast.LENGTH_SHORT).show();
+//                    marche = 0; arrete = 1;
+//                    stopJob();
+//                    break;
+//            }
         }
     };
 
     @Override
     public void onResume() {
         super.onResume();
-        setFilters();  // Start listening notifications from UsbService
-        startService(UsbService.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
+//        setFilters();  // Start listening notifications from UsbService
+        startService(MyBluetoothService.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        getActivity().unregisterReceiver(broadcastReceiver);
+//        getActivity().unregisterReceiver(broadcastReceiver);
         getActivity().unbindService(usbConnection);
     }
 
     private final ServiceConnection usbConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName arg0, IBinder arg1) {
-            usbService = ((UsbService.UsbBinder) arg1).getService();
-            usbService.setHandler(mHandler);
+            bluetoothService = ((MyBluetoothService.BBinder) arg1).getService();
+            bluetoothService.setHandler(mHandler);
+            BluetoothDevice hc05 = btAdapter.getRemoteDevice("98:D3:32:20:D5:B3");
+            System.out.println("hc--05");
+            System.out.println(hc05.getName());
+            bluetoothService.connect(hc05);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
-            usbService = null;
+            bluetoothService = null;
         }
     };
 
     private void startService(Class<?> service, ServiceConnection serviceConnection, Bundle extras) {
-        if (!UsbService.SERVICE_CONNECTED) {
+        if (!MyBluetoothService.SERVICE_CONNECTED) {
             Intent startService = new Intent(getContext(), service);
             if (extras != null && !extras.isEmpty()) {
                 Set<String> keys = extras.keySet();
@@ -398,9 +418,25 @@ public class FirstFragment extends Fragment {
                 }
             }
             getActivity().startService(startService);
+            Toast.makeText(getContext(), "service connected", Toast.LENGTH_SHORT).show();
         }
         Intent bindingIntent = new Intent(getActivity(), service);
         getActivity().bindService(bindingIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        switch (requestCode) {
+            case REQUEST_ENABLE_BT:
+                // When the request to enable Bluetooth returns
+                if (resultCode == Activity.RESULT_OK) {
+                    // Bluetooth is now enabled, so set up a chat session
+                    startService(MyBluetoothService.class, usbConnection, null);
+                } else {
+                    // User did not enable Bluetooth or an error occured
+                    Toast.makeText(getActivity(), R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
+                    getActivity().finish();
+                }
+        }
     }
 
 
@@ -411,9 +447,8 @@ public class FirstFragment extends Fragment {
         filter.addAction(UsbService.ACTION_USB_DISCONNECTED);
         filter.addAction(UsbService.ACTION_USB_NOT_SUPPORTED);
         filter.addAction(UsbService.ACTION_USB_PERMISSION_NOT_GRANTED);
-        getActivity().registerReceiver(broadcastReceiver, filter);
+//        getActivity().registerReceiver(broadcastReceiver, filter);
     }
-
 
     /*
      * This handler will be passed to UsbService. Data received from serial port is displayed through this handler
@@ -430,17 +465,23 @@ public class FirstFragment extends Fragment {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case UsbService.MESSAGE_FROM_SERIAL_PORT:
+                case MyBluetoothService.MessageConstants.MESSAGE_READ:
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            data += (String) msg.obj;
+//                            data += (String) msg.obj;
+                            byte[] readBuf = (byte[]) msg.obj;
+                            // construct a string from the valid bytes in the buffer
+                            data += new String(readBuf, 0, msg.arg1);
+
+                            System.out.println(data);
                             int index = data.indexOf('S');
                             if (index>=0 && data.indexOf('F')>index) {
                                 dataStock = data.substring(index);
                                 data_split = dataStock.split(";");
                                 marche = Integer.parseInt(data_split[1]);
                                 arrete = Integer.parseInt(data_split[2]);
+                                bluetoothService.write((""+marche).getBytes());
                                 startJob();
                                 data = "";
                             }
@@ -448,11 +489,8 @@ public class FirstFragment extends Fragment {
                     });
 //                    mActivity.get().display.append(data);
                     break;
-                case UsbService.CTS_CHANGE:
-                    Toast.makeText(mActivity.get(), "CTS_CHANGE",Toast.LENGTH_LONG).show();
-                    break;
-                case UsbService.DSR_CHANGE:
-                    Toast.makeText(mActivity.get(), "DSR_CHANGE",Toast.LENGTH_LONG).show();
+                case MyBluetoothService.MessageConstants.MESSAGE_TOAST:
+                    Toast.makeText(mActivity.get(), msg.getData().getString("toast"),Toast.LENGTH_LONG).show();
                     break;
             }
         }

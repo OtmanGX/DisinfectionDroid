@@ -11,4 +11,5 @@
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="start">commencer</string>
+    <string name="bt_not_enabled_leaving">Bluetooth not activated</string>
 </resources>
